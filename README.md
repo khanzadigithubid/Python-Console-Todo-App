@@ -109,4 +109,3 @@ The application follows a layered architecture:
 - **Models**: Define the data structure (Task)
 - **Storage**: Handle data persistence (InMemoryStorage and TodoCRUDSubagent)
 - **Service**: Business logic and validation (TodoService)
-- **CLI**: User interface (Typer commands)

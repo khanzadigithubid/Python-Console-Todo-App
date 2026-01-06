@@ -1,246 +1,153 @@
-from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
-from rich.table import Table
-from src.todo.storage import TodoCRUDSubagent
-from src.todo.service import TodoService
-import re
+import json
+import os
+from datetime import datetime
 
+# File to store tasks
+TASKS_FILE = "tasks.json"
 
-def print_menu(console):
-    """Print the interactive menu."""
-    menu_text = Text()
-    menu_text.append("1. Add Task\n", style="bold green")
-    menu_text.append("2. List Tasks\n", style="bold blue")
-    menu_text.append("3. Update Task\n", style="bold yellow")
-    menu_text.append("4. Delete Task\n", style="bold red")
-    menu_text.append("5. Complete Task\n", style="bold cyan")
-    menu_text.append("6. Mark Incomplete\n", style="bold magenta")
-    menu_text.append("7. Exit", style="bold white")
+def load_tasks():
+    """Load tasks from the JSON file."""
+    if os.path.exists(TASKS_FILE):
+        with open(TASKS_FILE, 'r') as file:
+            try:
+                return json.load(file)
+            except json.JSONDecodeError:
+                return []
+    return []
 
-    panel = Panel(
-        menu_text,
-        title="[bold purple]Todo App[/bold purple]",
-        subtitle="[italic]Your tasks, organized![/italic]",
-        border_style="purple",
-        expand=False
-    )
+def save_tasks(tasks):
+    """Save tasks to the JSON file."""
+    with open(TASKS_FILE, 'w') as file:
+        json.dump(tasks, file, indent=2)
 
-    console.print(panel)
-    console.print("\n[yellow]Choose an option:[/yellow] ", end="")
-
-
-def print_header(console, title):
-    """Print a formatted header."""
-    header = Panel(
-        f"[bold]{title}[/bold]",
-        border_style="blue",
-        expand=False
-    )
-    console.print(header)
-    console.print()  # Empty line for spacing
-
-
-def get_user_input(console, prompt):
-    """Get input from the user with proper styling."""
-    console.print(f"[bold]{prompt}[/bold]: ", end="")
-    return input().strip()
-
-
-def add_task_interactive(console, service):
-    """Interactive task addition flow."""
-    print_header(console, "Add New Task")
-
-    title = get_user_input(console, "Enter task title")
+def add_task():
+    """Add a new task."""
+    title = input("Enter task title: ").strip()
     if not title:
-        console.print("[red]Task title cannot be empty![/red]")
+        print("Task title cannot be empty!")
         return
+    
+    description = input("Enter task description (optional): ").strip()
+    
+    tasks = load_tasks()
+    task_id = len(tasks) + 1
+    new_task = {
+        "id": task_id,
+        "title": title,
+        "description": description,
+        "completed": False,
+        "created_at": datetime.now().isoformat()
+    }
+    tasks.append(new_task)
+    save_tasks(tasks)
+    print(f"Task '{title}' added successfully with ID {task_id}!")
 
-    description = get_user_input(console, "Enter task description (optional, press Enter to skip)")
-    if not description:
-        description = None
-
-    try:
-        task = service.add_task(title, description)
-        console.print(f"[green]Task ban gaya![/green] (ID: {task.id})\n")
-    except ValueError as e:
-        console.print(f"[red]{str(e)}[/red]\n")
-
-
-def list_tasks_interactive(console, service):
-    """Interactive task listing."""
-    print_header(console, "Task List")
-
-    tasks = service.get_all_tasks()
-
+def view_tasks():
+    """View all tasks."""
+    tasks = load_tasks()
     if not tasks:
-        console.print("[yellow]Koi tasks nahi hain[/yellow]\n")
+        print("No tasks found!")
         return
+    
+    print("\n--- TASK LIST ---")
+    for task in tasks:
+        status = "✓ Completed" if task["completed"] else "○ Pending"
+        print(f"ID: {task['id']}")
+        print(f"Title: {task['title']}")
+        print(f"Description: {task['description'] or 'N/A'}")
+        print(f"Status: {status}")
+        print("-" * 30)
 
-    # Create a rich table
-    table = Table(title="Task List", border_style="blue")
-    table.add_column("#", style="dim")
-    table.add_column("Status", style="bold")
-    table.add_column("Title", style="bold")
-    table.add_column("Description", style="italic")
-    table.add_column("ID", style="dim", width=8)  # Shortened ID for readability
-
-    for idx, task in enumerate(tasks, 1):
-        status = "✓ Done" if task.completed else "○ Pending"
-        status_style = "green" if task.completed else "red"
-        # Shorten the ID for readability in the table
-        short_id = task.id[:8] + "..."
-        table.add_row(
-            str(idx),
-            f"[{status_style}]{status}[/{status_style}]",
-            task.title,
-            task.description or "",
-            short_id
-        )
-
-    console.print(table)
-    console.print()  # Empty line for spacing
-
-
-def update_task_interactive(console, service):
-    """Interactive task update flow."""
-    print_header(console, "Update Task")
-
-    tasks = service.get_all_tasks()
+def mark_task_completed():
+    """Mark a task as completed."""
+    tasks = load_tasks()
     if not tasks:
-        console.print("[yellow]Koi tasks nahi hain[/yellow]\n")
+        print("No tasks found!")
         return
-
-    list_tasks_interactive(console, service)
-
-    task_num = get_user_input(console, "Enter task number to update")
+    
+    view_tasks()
     try:
-        task_idx = int(task_num) - 1
-        if task_idx < 0 or task_idx >= len(tasks):
-            console.print("[red]Invalid task number![/red]\n")
-            return
-
-        task = tasks[task_idx]
-        console.print(f"[blue]Updating task: {task.title}[/blue]\n")
-
-        new_title = get_user_input(console, f"New title (current: '{task.title}', press Enter to keep current)")
-        if not new_title:
-            new_title = task.title  # Keep current title if Enter is pressed
-
-        new_description = get_user_input(console, f"New description (current: '{task.description or 'None'}', press Enter to keep current)")
-        if new_description == "":  # If user just presses Enter, keep current
-            new_description = task.description
-        elif not new_description:  # If user enters empty string explicitly, set to None
-            new_description = None
-
-        updated_task = service.update_task(task.id, title=new_title, description=new_description)
-        console.print(f"[green]Task update ho gaya![/green]\n")
+        task_id = int(input("Enter task ID to mark as completed: "))
+        task_found = False
+        for task in tasks:
+            if task["id"] == task_id:
+                if task["completed"]:
+                    print(f"Task '{task['title']}' is already completed!")
+                else:
+                    task["completed"] = True
+                    save_tasks(tasks)
+                    print(f"Task '{task['title']}' marked as completed!")
+                task_found = True
+                break
+        
+        if not task_found:
+            print(f"Task with ID {task_id} not found!")
     except ValueError:
-        console.print("[red]Please enter a valid number![/red]\n")
-    except Exception as e:
-        console.print(f"[red]{str(e)}[/red]\n")
+        print("Please enter a valid task ID (number)!")
 
-
-def delete_task_interactive(console, service):
-    """Interactive task deletion flow."""
-    print_header(console, "Delete Task")
-
-    tasks = service.get_all_tasks()
+def delete_task():
+    """Delete a task."""
+    tasks = load_tasks()
     if not tasks:
-        console.print("[yellow]Koi tasks nahi hain[/yellow]\n")
+        print("No tasks found!")
         return
-
-    list_tasks_interactive(console, service)
-
-    task_num = get_user_input(console, "Enter task number to delete")
+    
+    view_tasks()
     try:
-        task_idx = int(task_num) - 1
-        if task_idx < 0 or task_idx >= len(tasks):
-            console.print("[red]Invalid task number![/red]\n")
-            return
-
-        task = tasks[task_idx]
-        console.print(f"[blue]Deleting task: {task.title}[/blue]\n")
-
-        result = service.delete_task(task.id)
-        if result:
-            console.print(f"[green]Task delete ho gaya![/green]\n")
-        else:
-            console.print(f"[red]Task could not be deleted![/red]\n")
+        task_id = int(input("Enter task ID to delete: "))
+        task_found = False
+        for i, task in enumerate(tasks):
+            if task["id"] == task_id:
+                deleted_task = tasks.pop(i)
+                save_tasks(tasks)
+                print(f"Task '{deleted_task['title']}' deleted successfully!")
+                task_found = True
+                break
+        
+        if not task_found:
+            print(f"Task with ID {task_id} not found!")
     except ValueError:
-        console.print("[red]Please enter a valid number![/red]\n")
-    except Exception as e:
-        console.print(f"[red]{str(e)}[/red]\n")
+        print("Please enter a valid task ID (number)!")
 
-
-def toggle_task_status_interactive(console, service, complete=True):
-    """Interactive task completion/incompletion flow."""
-    action = "Complete" if complete else "Mark Incomplete"
-    print_header(console, f"{action} Task")
-
-    tasks = service.get_all_tasks()
-    if not tasks:
-        console.print("[yellow]Koi tasks nahi hain[/yellow]\n")
-        return
-
-    list_tasks_interactive(console, service)
-
-    task_num = get_user_input(console, f"Enter task number to {'complete' if complete else 'mark incomplete'}")
-    try:
-        task_idx = int(task_num) - 1
-        if task_idx < 0 or task_idx >= len(tasks):
-            console.print("[red]Invalid task number![/red]\n")
-            return
-
-        task = tasks[task_idx]
-        console.print(f"[blue]Toggling task: {task.title}[/blue]\n")
-
-        updated_task = service.toggle_task_status(task.id)
-        status_text = "complete ho gaya" if complete else "incomplete ho gaya"
-        console.print(f"[green]Task {status_text}![/green]\n")
-    except ValueError:
-        console.print("[red]Please enter a valid number![/red]\n")
-    except Exception as e:
-        console.print(f"[red]{str(e)}[/red]\n")
-
+def display_menu():
+    """Display the main menu."""
+    print("\n" + "="*40)
+    print("         PYTHON TODO APPLICATION")
+    print("="*40)
+    print("1. Add a new task")
+    print("2. View all tasks")
+    print("3. Mark task as completed")
+    print("4. Delete a task")
+    print("5. Exit")
+    print("="*40)
 
 def main():
-    """Main entry point for the application with interactive menu."""
-    console = Console()
-
-    # Initialize storage, subagent, and service
-    subagent = TodoCRUDSubagent()
-    service = TodoService(subagent)
-
+    """Main function to run the todo application."""
+    print("Welcome to the Python Console Todo Application!")
+    
     while True:
-        print_menu(console)
-
+        display_menu()
         try:
-            choice = input().strip()
-
+            choice = input("Choose an option (1-5): ").strip()
+            
             if choice == "1":
-                add_task_interactive(console, service)
+                add_task()
             elif choice == "2":
-                list_tasks_interactive(console, service)
+                view_tasks()
             elif choice == "3":
-                update_task_interactive(console, service)
+                mark_task_completed()
             elif choice == "4":
-                delete_task_interactive(console, service)
+                delete_task()
             elif choice == "5":
-                toggle_task_status_interactive(console, service, complete=True)
-            elif choice == "6":
-                toggle_task_status_interactive(console, service, complete=False)
-            elif choice == "7":
-                console.print("[bold green]Bye! Keep being productive![/bold green]")
+                print("Thank you for using the Todo Application. Goodbye!")
                 break
             else:
-                console.print(f"[red]Invalid option '{choice}'. Please choose 1-7.[/red]\n")
+                print("Invalid option! Please choose a number between 1-5.")
         except KeyboardInterrupt:
-            console.print("\n[bold red]Bye! Keep being productive![/bold red]")
+            print("\n\nApplication interrupted. Goodbye!")
             break
         except Exception as e:
-            console.print(f"[red]An error occurred: {str(e)}[/red]\n")
-
+            print(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
     main()

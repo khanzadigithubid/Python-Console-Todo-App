@@ -23,4 +23,4 @@ A simple console-based todo application built with Python that allows users to m
 python main.py
 ```
 
-The application will start and present you with a menu to interact with your tasks.
+The application will start and present you with a menu to interact with your tasks.# Updated on Jan 13, 2026 

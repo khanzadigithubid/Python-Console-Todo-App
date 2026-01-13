@@ -7,7 +7,7 @@ surface: agent
 model: Qwen Code
 feature: none
 branch: main
-user: AHSEN
+user: Khanzadi
 command: /sp.constitution
 labels:
   - constitution

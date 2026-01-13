@@ -3,7 +3,7 @@ name = "python-console-todo-app"
 version = "1.0.0"
 description = "A simple console-based todo application using only Python standard library"
 authors = [
-    {name = "AI Khanzadi", email = "ai.khanzadi@example.com"}
+    {name = "Khanzadi", email = "memonbisma22@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.6"

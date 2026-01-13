@@ -7,7 +7,7 @@ surface: agent
 model: Qwen Code
 feature: interactive-terminal-menu
 branch: 002-interactive-terminal-menu
-user: AHSEN
+user: Khanzadi
 command: /sp.specify
 labels:
   - specification

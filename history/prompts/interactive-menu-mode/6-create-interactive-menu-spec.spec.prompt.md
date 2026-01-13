@@ -7,7 +7,7 @@ surface: agent
 model: Qwen Code
 feature: interactive-menu-mode
 branch: 001-interactive-menu-mode
-user: AHSEN
+user: Khanzadi
 command: /sp.specify
 labels:
   - specification

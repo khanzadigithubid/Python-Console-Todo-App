@@ -7,7 +7,7 @@ surface: agent
 model: Qwen Code
 feature: phase1-todo-app
 branch: 001-phase1-todo-app
-user: AHSEN
+user: Khanzadi
 command: /sp.implement
 labels:
   - implementation
